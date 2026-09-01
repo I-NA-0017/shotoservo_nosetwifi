@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+  <title>Reels - ショート動画</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      background: #000;
+      color: #fff;
+      font-family: 'Plus Jakarta Sans', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+    }
+
+    /* メインコンテナ（スクロールスナップ） */
+    .container {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      scroll-behavior: smooth;
+    }
+
+    .container::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* 各動画ページ */
+    .video-page {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #111;
+      overflow: hidden;
+    }
+
+    /* 動画要素 */
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      background: #000;
+    }
+
+    /* 上下グラデーションオーバーレイ */
+    .overlay-gradient {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.4) 0%,
+        rgba(0, 0, 0, 0) 18%,
+        rgba(0, 0, 0, 0) 55%,
+        rgba(0, 0, 0, 0.88) 100%
+      );
+      z-index: 2;
+    }
+
+    /* 上部ヘッダー（音源情報・案内） */
+    .top-bar {
+      position: absolute;
+      top: max(16px, env(safe-area-inset-top));
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .music-badge-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      max-width: 60%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .audio-hint {
+      background: rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: opacity 0.3s;
+    }
+
+    .audio-hint.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* 右側のアクションボタン列 */
+    .side-actions {
+      position: absolute;
+      right: 12px;
+      bottom: max(32px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      z-index: 10;
+    }
+
+    .action-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: #fff;
+      outline: none;
+      transition: transform 0.15s ease;
+    }
+
+    .action-btn:active {
+      transform: scale(0.85);
+    }
+
+    .action-icon-wrap {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+    }
+
+    .action-icon-wrap svg {
+      width: 30px;
+      height: 30px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: all 0.2s ease;
+    }
+
+    .action-btn.liked .action-icon-wrap svg {
+      fill: #ff2d55;
+      stroke: #ff2d55;
+      animation: heartPop 0.3s cubic-bezier(0.17, 0.89, 0.32, 1.49);
+    }
+
+    @keyframes heartPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.35); }
+      100% { transform: scale(1); }
+    }
+
+    .action-count {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+      letter-spacing: 0.2px;
+    }
+
+    /* 右下の音源レコードサムネイル */
+    .disc-wrap {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+      margin-top: 2px;
+      background: #222;
+    }
+
+    .disc-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* 左下の投稿情報オーバーレイ */
+    .bottom-info {
+      position: absolute;
+      left: 16px;
+      right: 80px;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    /* ユーザー行 */
+    .user-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.85);
+      object-fit: cover;
+      background: #333;
+    }
+
+    .username {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .follow-btn {
+      padding: 5px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      background: transparent;
+      color: #fff;
+      border: 1.5px solid rgba(255, 255, 255, 0.85);
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: all 0.2s ease;
+    }
+
+    .follow-btn.following {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.4);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* キャプション */
+    .caption {
+      font-size: 13.5px;
+      line-height: 1.42;
+      font-weight: 400;
+      color: #f1f1f1;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .caption.expanded {
+      -webkit-line-clamp: unset;
+    }
+
+    /* 音楽行 */
+    .music-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.92);
+      font-weight: 500;
+    }
+
+    .music-row svg {
+      width: 14px;
+      height: 14px;
+      fill: #fff;
+      flex-shrink: 0;
+    }
+
+    .music-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- スワイプコンテナ -->
+  <div class="container" id="videoContainer">
+    <!-- JSで動画カードが無限ループ生成されます -->
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. 動画ファイル一覧
+    // ==========================================
+    const VIDEO_FILES = [
+      "movie01.mp4",
+      "movie02.mp4",
+      "movie03.mp4"
+    ];
+
+    // ==========================================
+    // 2. エンタメ系コンテンツ・プール（バリエーション用データ）
+    // ==========================================
+    const USER_NAMES = [
+      "curuco_works",
+      "tokyo_trend_clip",
+      "daily_smile_lab",
+      "vibe_vibes_jp",
+      "lifehack_station",
+      "chill_moment_7",
+      "happy_everyday_ch"
+    ];
+
+    const CAPTIONS = [
+      "今日もいいことあった人へ届け🍀 最後まで見てみてね #日常 #癒し #あるある",
+      "この動画に出会えた人は今週めちゃくちゃ運気上がります✨ #幸運 #おすすめ #shorts",
+      "これ共感できる人どのくらいいる？😂 コメントで教えて！ #あるあるネタ #トレンド",
+      "知ってたら得するライフハック💡 保存して後で見返してね #ライフハック #豆知識",
+      "仕事終わりにこれ見て元気出してね☕️ 今日もお疲れ様でした！ #お疲れ様 #癒し動画",
+      "まさかの展開すぎて草www 2回見ると意味がわかる👀 #衝撃 #エンタメ #神回",
+      "深夜にこれ見るのは危険すぎた🤤 みんなは何が好き？ #日常 #あるある #おすすめ",
+      "奇跡の瞬間が撮れました...！信じられる？😳 #神業 #すごい #shorts"
+    ];
+
+    const ORIGINAL_MUSIC = [
+      "オリジナル音源 - trend_vibes #01",
+      "オリジナル音源 - Daily Chill Beat",
+      "オリジナル音源 - pop_energy_mix",
+      "オリジナル音源 - midnight_lofi #04",
+      "オリジナル音源 - happy_acoustic",
+      "オリジナル音源 - city_groove_original"
+    ];
+
+    const LIKES_POOL = ["650", "1.2万", "3.6万", "8,420", "4.5万", "930", "12.8万", "2.1万", "5,120"];
+    const COMMENTS_POOL = ["23", "426", "1,204", "89", "572", "14", "3,890", "180"];
+    const SHARES_POOL = ["14", "88", "310", "45", "190", "8", "940", "52"];
+
+    // アバター・サムネイル用画像
+    const AVATARS = [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80",
+      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=120&q=80",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80",
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=120&q=80",
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=120&q=80"
+    ];
+
+    const DISCS = [
+      "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=120&q=80",
+      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=120&q=80",
+      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=120&q=80"
+    ];
+
+    // ==========================================
+    // 3. Firebase 設定 & サーボ送信
+    // ==========================================
+    const FIREBASE_URL = "https://servo-switch-default-rtdb.asia-southeast1.firebasedatabase.app/servo.json";
+
+    function moveServo() {
+      const now = Date.now();
+      console.log("☁️ Firebaseへトリガー送信中...", now);
+
+      fetch(FIREBASE_URL, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          trigger: now
+        })
+      })
+        .then(response => {
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          return response.json();
+        })
+        .then(data => {
+          console.log("✅ Firebase送信成功：", data);
+        })
+        .catch(error => {
+          console.error("❌ Firebase送信失敗：", error);
+        });
+    }
+
+    // ==========================================
+    // 4. 音声管理（何十回スワイプしても音が途切れない最強設計）
+    // ==========================================
+    let isAudioEnabled = false;
+
+    function activateAudio() {
+      isAudioEnabled = true;
+      document.querySelectorAll(".audio-hint").forEach(el => el.classList.add("hidden"));
+      unmuteCurrentActiveVideo();
+    }
+
+    // 現在表示されている動画を確実にアンミュートして再生する
+    function unmuteCurrentActiveVideo() {
+      if (!isAudioEnabled) return;
+
+      // 現在画面の中央にある動画を特定
+      const pages = Array.from(container.querySelectorAll(".video-page"));
+      const centerY = window.innerHeight / 2;
+
+      pages.forEach(page => {
+        const rect = page.getBoundingClientRect();
+        const video = page.querySelector("video");
+        if (rect.top <= centerY && rect.bottom >= centerY) {
+          if (video) {
+            video.muted = false;
+            // ユーザー操作の同期コンテキストで即座に再生
+            video.play().catch(() => {});
+          }
+        }
+      });
+    }
+
+    // 画面タップ、スワイプ開始、スワイプ終了（指を離した瞬間）、スクロールのすべてで同期的に音声を維持
+    window.addEventListener("click", activateAudio, { passive: true });
+    window.addEventListener("touchstart", activateAudio, { passive: true });
+    window.addEventListener("touchend", unmuteCurrentActiveVideo, { passive: true });
+    window.addEventListener("scroll", () => {
+      if (isAudioEnabled) {
+        unmuteCurrentActiveVideo();
+      }
+    }, { passive: true });
+
+    // スクロール停止検知（スナップ完了時にも確実にアンミュート）
+    let scrollTimeout = null;
+    container.addEventListener("scroll", () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        if (isAudioEnabled) {
+          unmuteCurrentActiveVideo();
+        }
+      }, 80);
+    }, { passive: true });
+
+    // ==========================================
+    // 5. 動画カードのDOM生成
+    // ==========================================
+    const container = document.getElementById("videoContainer");
+    let totalAppended = 0;
+
+    function createVideoPage(index) {
+      const videoSrc = VIDEO_FILES[index % VIDEO_FILES.length];
+      const username = USER_NAMES[index % USER_NAMES.length];
+      const caption = CAPTIONS[index % CAPTIONS.length];
+      const music = ORIGINAL_MUSIC[index % ORIGINAL_MUSIC.length];
+      const likes = LIKES_POOL[index % LIKES_POOL.length];
+      const comments = COMMENTS_POOL[index % COMMENTS_POOL.length];
+      const shares = SHARES_POOL[index % SHARES_POOL.length];
+      const avatar = AVATARS[index % AVATARS.length];
+      const disc = DISCS[index % DISCS.length];
+
+      const page = document.createElement("section");
+      page.className = "video-page";
+      page.dataset.index = index;
+
+      page.innerHTML = `
+        <video
+          data-src="${videoSrc}"
+          ${isAudioEnabled ? "" : "muted"}
+          loop
+          playsinline
+          webkit-playsinline
+          preload="none">
+        </video>
+
+        <div class="overlay-gradient"></div>
+
+        <!-- 上部バー -->
+        <div class="top-bar">
+          <div class="music-badge-top">
+            <span>🎵</span>
+            <span>${music}</span>
+          </div>
+          <div class="audio-hint ${isAudioEnabled ? 'hidden' : ''}">
+            <span>🔇</span> タップで音ON
+          </div>
+        </div>
+
+        <!-- 右側アクションボタン -->
+        <div class="side-actions">
+          <!-- いいね -->
+          <button class="action-btn" onclick="toggleLike(this, '${likes}')">
+            <div class="action-icon-wrap">
+              <svg viewBox="0 0 24 24">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+            </div>
+            <span class="action-count">${likes}</span>
+          </button>
+
+          <!-- コメント -->
+          <button class="action-btn" onclick="dummyAction('コメント')">
+            <div class="action-icon-wrap">
+              <svg viewBox="0 0 24 24">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              </svg>
+            </div>
+            <span class="action-count">${comments}</span>
+          </button>
+
+          <!-- リポスト/共有 -->
+          <button class="action-btn" onclick="dummyAction('リポスト')">
+            <div class="action-icon-wrap">
+              <svg viewBox="0 0 24 24">
+                <polyline points="17 1 21 5 17 9"></polyline>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                <polyline points="7 23 3 19 7 15"></polyline>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+              </svg>
+            </div>
+            <span class="action-count">${shares}</span>
+          </button>
+
+          <!-- シェア (紙飛行機) -->
+          <button class="action-btn" onclick="dummyAction('シェア')">
+            <div class="action-icon-wrap">
+              <svg viewBox="0 0 24 24">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </div>
+            <span class="action-count">共有</span>
+          </button>
+
+          <!-- その他メニュー -->
+          <button class="action-btn" onclick="dummyAction('メニュー')">
+            <div class="action-icon-wrap">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="1.5"></circle>
+                <circle cx="19" cy="12" r="1.5"></circle>
+                <circle cx="5" cy="12" r="1.5"></circle>
+              </svg>
+            </div>
+          </button>
+
+          <!-- 音源ジャケット -->
+          <div class="disc-wrap">
+            <img src="${disc}" alt="music disc">
+          </div>
+        </div>
+
+        <!-- 左下：投稿者情報 -->
+        <div class="bottom-info">
+          <div class="user-row">
+            <img src="${avatar}" alt="avatar" class="avatar">
+            <span class="username">@${username}</span>
+            <button class="follow-btn" onclick="toggleFollow(this)">フォローする</button>
+          </div>
+
+          <div class="caption" onclick="this.classList.toggle('expanded')">
+            ${caption}
+          </div>
+
+          <div class="music-row">
+            <svg viewBox="0 0 24 24">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+            <span class="music-title">${music}</span>
+          </div>
+        </div>
+      `;
+
+      return page;
+    }
+
+    // ==========================================
+    // 6. アクションボタンのインタラクション
+    // ==========================================
+    function toggleLike(btn, defaultCount) {
+      btn.classList.toggle("liked");
+      const countEl = btn.querySelector(".action-count");
+      if (btn.classList.contains("liked")) {
+        countEl.textContent = "Liked!";
+      } else {
+        countEl.textContent = defaultCount;
+      }
+    }
+
+    function toggleFollow(btn) {
+      btn.classList.toggle("following");
+      btn.textContent = btn.classList.contains("following") ? "フォロー中" : "フォローする";
+    }
+
+    function dummyAction(name) {
+      console.log(name + "がタップされました");
+    }
+
+    // ==========================================
+    // 7. ビデオデコーダーのスマートリソース管理
+    // ==========================================
+    function loadVideo(video) {
+      if (!video) return;
+      const targetSrc = video.dataset.src;
+      if (video.getAttribute("src") !== targetSrc) {
+        video.src = targetSrc;
+        video.muted = !isAudioEnabled;
+        video.load();
+      }
+    }
+
+    function unloadVideo(video) {
+      if (!video) return;
+      if (video.getAttribute("src")) {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      }
+    }
+
+    function updateActiveVideos(activePage) {
+      const allPages = Array.from(container.querySelectorAll(".video-page"));
+      const activeIdx = allPages.indexOf(activePage);
+
+      allPages.forEach((page, idx) => {
+        const video = page.querySelector("video");
+        if (Math.abs(idx - activeIdx) <= 1) {
+          loadVideo(video);
+        } else {
+          unloadVideo(video);
+        }
+      });
+    }
+
+    // ==========================================
+    // 8. IntersectionObserver（動画切り替え・自動再生・サーボ連動）
+    // ==========================================
+    let currentActivePage = null;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const page = entry.target;
+          const video = page.querySelector("video");
+
+          if (entry.isIntersecting) {
+            currentActivePage = page;
+
+            // 前後の動画をロード
+            updateActiveVideos(page);
+
+            // 再生開始
+            video.currentTime = 0;
+            if (isAudioEnabled) {
+              video.muted = false;
+            }
+
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  if (isAudioEnabled) {
+                    video.muted = false;
+                  }
+                })
+                .catch(() => {
+                  // 自動再生が一時ブロックされた場合はミュートで再生開始し、ユーザー操作時にアンミュート
+                  video.muted = true;
+                  video.play().catch(() => {});
+                });
+            }
+
+            // サーボを動かす！
+            moveServo();
+
+            // 末尾に近づいたら次の動画ページを追加
+            const allPages = container.querySelectorAll(".video-page");
+            const index = Array.from(allPages).indexOf(page);
+            if (index >= allPages.length - 2) {
+              appendNextVideos(3);
+            }
+          } else {
+            if (currentActivePage === page) {
+              video.pause();
+            }
+          }
+        });
+      },
+      {
+        threshold: 0.65
+      }
+    );
+
+    function appendNextVideos(count = 2) {
+      for (let i = 0; i < count; i++) {
+        const page = createVideoPage(totalAppended);
+        container.appendChild(page);
+        observer.observe(page);
+        totalAppended++;
+      }
+    }
+
+    // ==========================================
+    // 9. 初期化
+    // ==========================================
+    appendNextVideos(4);
+
+    const firstPage = container.querySelector(".video-page");
+    if (firstPage) {
+      updateActiveVideos(firstPage);
+    }
+
+  </script>
+
+</body>
+
+</html>
+
